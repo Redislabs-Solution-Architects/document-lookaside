@@ -1,7 +1,7 @@
-# Example of Redis lookaside cache with Mongo
+# Example of Redis Lookaside Cache with MongoDB
 
 ## Summary
-API server and client implementation of an application using Mongodb for document storage and Redis for lookaside caching.
+API server and client implementation of an application using MongoDB for document storage and Redis for lookaside caching.
 ## Architecture
 ### High Level
 ![High-level Architecture](https://docs.google.com/drawings/d/e/2PACX-1vTRrISLLxRwdTBJA1ddQyPRFlcgMYn-0xSWSuJSRVNR6uzRllbpcaOiw9TH2TKenztWhMkaOAv-9xMH/pub?w=663&amp;h=380 "High Level Architecture")
