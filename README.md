@@ -28,13 +28,17 @@ pip install -r requirements.txt
 ```bash
 docker compose up
 ```
-5. To access the API via browser:
-```bash
-http://localhost:8000/cancellations/airports/ATL/2003/6
-
-http://localhost:8000/metrics
-```
-6. To execute the test client:
+## Usage
+### Test Client
 ```bash
 python3 ./tests/test.py
+```
+### CURL
+
+```bash
+curl http://localhost:8000/cancellations/airports/ATL/2003/6
+{"result":216}
+
+curl http://localhost:8000/metrics
+{"cache_hits":86,"cache_misses":915,"ave_cache_latency":0.309,"ave_db_latency":0.77}
 ```
