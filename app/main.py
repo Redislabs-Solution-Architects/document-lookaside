@@ -51,6 +51,7 @@ async def startup_event():
 async def shutdown_event():
     mdb.close()
     await rdb.quit()
+    await lock_mgr.destroy()
 
 @app.get('/cancellations/airports/{airport}/{year}/{month}', 
     response_description='Flight cancellation totals for an airport in a given month, year')
@@ -62,7 +63,7 @@ async def get_cancellations(airport: str, year: int, month: int):
         if len(result.docs) > 0:  # cache hit
             jsonval = loads(result.docs[0].json)
             metrics.incr_hits(duration)
-            return {"result": jsonval['statistics']['flights']['canceled']}
+            json_res = {"result": jsonval['statistics']['flights']['canceled']}
         else:  # cache miss
             col = mdb.airlines.delays
             lock = await lock_mgr.lock(f"lock:{airport}:{year}:{month}")  #fine-grained, distributed lock
@@ -76,16 +77,19 @@ async def get_cancellations(airport: str, year: int, month: int):
                 id = result.pop('_id')  # this field can't be serialized and needs to be removed
                 await rdb.json().set(f"delayStat:{id}", '$', result)  #add val to cache and set TTL to 1 hour
                 await rdb.expire(f"delayStat:{id}", 3600)
-                await lock_mgr.unlock(lock)
-                return {"result": result['statistics']['flights']['canceled']}
+                json_res = {"result": result['statistics']['flights']['canceled']}
             else: # not found in cache or db
-                await lock_mgr.unlock(lock)
                 raise HTTPException(status_code=404, detail=f"Data not found for {airport} {year} {month}")
     except Exception as err:
         if type(err) == HTTPException:
             raise err
         else:
             raise HTTPException(status_code=400, detail=str(err))
+    else:
+        return json_res
+    finally:
+        if lock and lock.valid:
+            await lock_mgr.unlock(lock)
 
 @app.get('/metrics', response_model=MetricsModel)
 def get_metrics():
