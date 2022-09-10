@@ -8,9 +8,11 @@ from json import load, loads
 from decouple import config
 from metrics_model import MetricsModel
 from time import perf_counter_ns
+from aioredlock import Aioredlock
 
 app = FastAPI()
-rdb = aioredis.from_url(config('REDIS_URL')) 
+rdb = aioredis.from_url(config('REDIS_URL'))
+lock_mgr = Aioredlock([config('REDIS_URL')]) 
 mdb = AsyncIOMotorClient(config('MONGO_URL'))
 metrics = MetricsModel()
 
@@ -63,6 +65,7 @@ async def get_cancellations(airport: str, year: int, month: int):
             return {"result": jsonval['statistics']['flights']['canceled']}
         else:  # cache miss
             col = mdb.airlines.delays
+            lock = await lock_mgr.lock(f"lock:{airport}:{year}:{month}")  #fine-grained, distributed lock
             result, duration = await time_func(col.find_one, 
                 { "airport.code": airport,
                     "time.year": {"$eq": year},
@@ -73,8 +76,10 @@ async def get_cancellations(airport: str, year: int, month: int):
                 id = result.pop('_id')  # this field can't be serialized and needs to be removed
                 await rdb.json().set(f"delayStat:{id}", '$', result)  #add val to cache and set TTL to 1 hour
                 await rdb.expire(f"delayStat:{id}", 3600)
+                await lock_mgr.unlock(lock)
                 return {"result": result['statistics']['flights']['canceled']}
             else: # not found in cache or db
+                await lock_mgr.unlock(lock)
                 raise HTTPException(status_code=404, detail=f"Data not found for {airport} {year} {month}")
     except Exception as err:
         if type(err) == HTTPException:
