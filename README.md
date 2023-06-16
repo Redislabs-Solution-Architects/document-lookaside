@@ -20,11 +20,7 @@ API server and client implementation of an application using MongoDB for documen
 ```bash
 cd document-lookaside
 ```
-3. Install Python requirements (either in a virtual env or global)
-```bash
-pip install -r requirements.txt
-```
-4. Build and start docker containers
+3. Build and start docker containers
 ```bash
 docker compose up
 ```
